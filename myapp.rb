@@ -83,7 +83,6 @@ end
 
 post '/travis_notifications' do
     @payload = JSON.parse(params[:payload])
-    puts @payload.to_json
     if @payload["branch"] === "master"
         buildStatus = @payload["status_message"]
         author = @payload["author_name"]
