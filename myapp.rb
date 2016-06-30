@@ -70,6 +70,8 @@ post '/event_handler' do
                                 short: false
                             }
                         ],
+                        footer: "GitHub",
+                        footer_icon: "https://a.slack-edge.com/2fac/plugins/github/assets/service_48.png",
                         ts: timeSinceEpoch
                     }
                 ]
@@ -81,6 +83,59 @@ post '/event_handler' do
 end
 
 post '/travis_notifications' do
+    puts params
     @payload = JSON.parse(params[:payload])
-    puts @payload.to_json
+    if @payload["branch"] === "master"
+        buildStatus = @payload["status_message"]
+        author = @payload["author_name"]
+        buildUrl = @payload["build_url"]
+        message = @payload["message"]
+        repo = @payload["repository"]["name"]
+
+        buildFinishedAt = @payload["finished_at"]
+        epochSecs = Time.parse(buildFinishedAt).to_i
+        ENV['TZ']='Asia/Kolkata'
+        timeSinceEpoch = Time::at(epochSecs).to_i
+
+        colors = {
+            'Pending' => 'warning',
+            'Passed' => 'good',
+            'Fixed' => 'good',
+            'Broken' => 'danger',
+            'Failed' => 'danger',
+            'Still Failing' => 'danger'
+        }
+        data = {
+            attachments: [
+                {
+                    fallback: "Build " + buildStatus,
+                    title: "Build " + buildStatus + " on master in " + repo,
+                    title_link: buildUrl,
+                    # author_name: user,
+                    # author_link: userUrl,
+                    # mrkdwn_in: ["fields"],
+                    color: colors["buildStatus"],
+                    fields:[
+                        {
+                            title: "Build Status",
+                            value: buildStatus,
+                            short: true
+                        },
+                        {
+                            title: "Merged by",
+                            value: author,
+                            short: true
+                        },
+                        {
+                            value: message,
+                            short: false
+                        }
+                    ],
+                    footer: "Travis CI",
+                    footer_icon: "https://a.slack-edge.com/0180/img/services/travis_48.png",
+                    ts: timeSinceEpoch
+                }
+            ]
+        }
+    end
 end
