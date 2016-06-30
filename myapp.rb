@@ -79,3 +79,8 @@ post '/event_handler' do
         end
     end
 end
+
+post '/travis_notifications' do
+    @payload = JSON.parse(params[:payload])
+    puts @payload.to_json
+end

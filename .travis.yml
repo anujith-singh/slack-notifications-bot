@@ -1,6 +1,5 @@
 language: ruby
 rvm:
   - 2.2
-  - jruby
-  - rbx-2
-
+notifications:
+  webhooks: https://31921a28.ngrok.io/travis_notifications
