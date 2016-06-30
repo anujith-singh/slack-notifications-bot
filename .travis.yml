@@ -4,5 +4,4 @@ rvm:
   - jruby
   - rbx-2
 notifications:
-  notifications:
-    webhooks: https://31921a28.ngrok.io/travis_notifications
+  webhooks: https://31921a28.ngrok.io/travis_notifications
