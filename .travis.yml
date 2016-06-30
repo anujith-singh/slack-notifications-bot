@@ -4,5 +4,5 @@ rvm:
   - jruby
   - rbx-2
 notifications:
-  slack: practo:OLTzoniwrjD4PrhWG5Eu0ZED
-  only: master
+  notifications:
+    webhooks: https://31921a28.ngrok.io/travis_notifications
