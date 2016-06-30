@@ -5,3 +5,4 @@ rvm:
   - rbx-2
 notifications:
   slack: practo:OLTzoniwrjD4PrhWG5Eu0ZED
+  only: master
