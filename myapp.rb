@@ -11,7 +11,6 @@ http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 slackRequest = Net::HTTP::Post.new("/services/T024PSVLF/B1MDP55HU/UujJlw0BbmDtEI5QflFBvq41")
 slackRequest.add_field('Content-Type', 'application/json')
 
-
 get '/' do
     'Hello world!'
 end
