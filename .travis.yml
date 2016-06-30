@@ -2,4 +2,4 @@ language: ruby
 rvm:
   - 2.2
 notifications:
-  webhooks: https://31921a28.ngrok.io/travis_notifications
+  webhooks: https://ray-print.practodev.com/api/notification/travis_notifications
