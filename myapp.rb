@@ -19,8 +19,7 @@ post '/event_handler' do
     @payload = JSON.parse(params[:payload])
     case request.env['HTTP_X_GITHUB_EVENT']
     when "pull_request"
-        # if @payload["action"] == "closed" && @payload["pull_request"]["merged"]
-        if @payload["action"]
+        if @payload["action"] == "closed" && @payload["pull_request"]["merged"]
             user = @payload["pull_request"]["merged_by"]["login"]
             userUrl = @payload["pull_request"]["merged_by"]["html_url"]
 
