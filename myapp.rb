@@ -11,11 +11,13 @@ http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 slackRequest = Net::HTTP::Post.new("/services/T024PSVLF/B1MDP55HU/UujJlw0BbmDtEI5QflFBvq41")
 slackRequest.add_field('Content-Type', 'application/json')
 
+set :environment, :production
+
 get '/' do
     'Hello world!'
 end
 
-post '/event_handler' do
+post '/github_event_handler' do
     @payload = JSON.parse(params[:payload])
     case request.env['HTTP_X_GITHUB_EVENT']
     when "pull_request"
