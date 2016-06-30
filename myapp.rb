@@ -83,7 +83,6 @@ post '/event_handler' do
 end
 
 post '/travis_notifications' do
-    puts params
     @payload = JSON.parse(params[:payload])
     if @payload["branch"] === "master"
         buildStatus = @payload["status_message"]
@@ -108,13 +107,13 @@ post '/travis_notifications' do
         data = {
             attachments: [
                 {
-                    fallback: "Build " + buildStatus,
+                    fallback: "Build " + buildStatus + " on master in " + repo,
                     title: "Build " + buildStatus + " on master in " + repo,
                     title_link: buildUrl,
                     # author_name: user,
                     # author_link: userUrl,
                     # mrkdwn_in: ["fields"],
-                    color: colors["buildStatus"],
+                    color: colors[buildStatus],
                     fields:[
                         {
                             title: "Build Status",
@@ -127,6 +126,7 @@ post '/travis_notifications' do
                             short: true
                         },
                         {
+                            title: "Commit Title",
                             value: message,
                             short: false
                         }
