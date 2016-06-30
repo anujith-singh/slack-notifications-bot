@@ -3,4 +3,5 @@ rvm:
   - 2.2
   - jruby
   - rbx-2
-
+notifications:
+  slack: practo:OLTzoniwrjD4PrhWG5Eu0ZED
