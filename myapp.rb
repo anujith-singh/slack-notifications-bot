@@ -85,8 +85,9 @@ end
 
 post '/travis_notifications' do
     @payload = JSON.parse(params[:payload])
-    if @payload["branch"] === "master"
-        buildStatus = @payload["status_message"]
+    buildStatus = @payload["status_message"]
+    buildFailStatuses = ['Broken','Failed','Still Failing']
+    if @payload["branch"] === "master" && buildFailStatuses.include?(buildStatus)
         author = @payload["author_name"]
         buildUrl = @payload["build_url"]
         message = @payload["message"]
