@@ -143,3 +143,71 @@ post '/travis_notifications' do
         slackResponse = http.request(slackRequest)
     end
 end
+
+post '/from_slack' do
+    content_type :json
+    triggerWord = params["trigger_word"]
+    reponseText = ""
+
+    if triggerWord == "queue++" || triggerWord == "deployment queue++"
+        prs = params["text"]
+        prs.gsub! triggerWord, ""
+        prs.gsub! "<", ""
+        prs.gsub! ">", ""
+        prArray = prs.split("\n")
+        prArray = prArray.collect{|x| x.strip || x }
+        prArray = prArray.uniq
+
+        # read from file and append new prs to that
+        if File.exist?('prsToDeploy')
+            prsInFile = Marshal.load File.read('prsToDeploy')
+            prArray = prsInFile + prArray
+        end
+        prArray = prArray.uniq
+
+        for pr in prArray
+            if pr.nil? || pr.empty?
+                prArray.delete(pr)
+            end
+        end
+        if !prArray.empty? && !prArray.nil?
+            serializedArray = Marshal.dump(prArray)
+            File.open('prsToDeploy', 'w') {|f| f.write(serializedArray) }
+            reponseText = reponseText + "Cheers! Have a :beer:\n"
+        end
+    elsif triggerWord == "queue-"
+        if File.exist?('prsToDeploy')
+            prs = params["text"]
+            prs.gsub! triggerWord, ""
+            prs.gsub! "<", ""
+            prs.gsub! ">", ""
+            prArray = prs.split("\n")
+            prArray = prArray.collect{|x| x.strip || x }
+            prArray = prArray.uniq
+            prsInFile = Marshal.load File.read('prsToDeploy')
+            for pr in prArray
+                prsInFile.delete(pr)
+            end
+            serializedArray = Marshal.dump(prsInFile)
+            File.open('prsToDeploy', 'w') {|f| f.write(serializedArray) }
+        end
+    elsif triggerWord == "clear queue"
+        if File.exist?('prsToDeploy')
+            File.delete('prsToDeploy')
+        end
+    end
+
+    if File.exist?('prsToDeploy')
+        prsInFile = Marshal.load File.read('prsToDeploy')
+        if !prsInFile.empty? && !prsInFile.nil?
+            reponseText = reponseText + "The following PRs are in the queue\n"
+            reponseText = reponseText + prsInFile.join("\n")
+        else
+            reponseText = reponseText + "No PRs in queue :sunglasses:"
+        end
+    else
+        reponseText = reponseText + "No PRs in queue :sunglasses:"
+    end
+
+    { :text => reponseText }.to_json
+end
