@@ -190,23 +190,25 @@ post '/from_slack' do
             end
             serializedArray = Marshal.dump(prsInFile)
             File.open('prsToDeploy', 'w') {|f| f.write(serializedArray) }
+            reponseText = reponseText + "Done :thumbsup::skin-tone-2:"
         end
     elsif triggerWord == "clear queue"
         if File.exist?('prsToDeploy')
             File.delete('prsToDeploy')
         end
-    end
-
-    if File.exist?('prsToDeploy')
-        prsInFile = Marshal.load File.read('prsToDeploy')
-        if !prsInFile.empty? && !prsInFile.nil?
-            reponseText = reponseText + "The following PRs are in the queue\n"
-            reponseText = reponseText + prsInFile.join("\n")
+        reponseText = reponseText + "All gone :thumbsup::skin-tone-2:"
+    elsif triggerWord == "list queue"
+        if File.exist?('prsToDeploy')
+            prsInFile = Marshal.load File.read('prsToDeploy')
+            if !prsInFile.empty? && !prsInFile.nil?
+                reponseText = reponseText + "The following PRs are in the queue\n"
+                reponseText = reponseText + prsInFile.join("\n")
+            else
+                reponseText = reponseText + "No PRs in queue :sunglasses:"
+            end
         else
             reponseText = reponseText + "No PRs in queue :sunglasses:"
         end
-    else
-        reponseText = reponseText + "No PRs in queue :sunglasses:"
     end
 
     { :text => reponseText }.to_json
