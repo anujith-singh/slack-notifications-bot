@@ -8,7 +8,7 @@ uri = URI.parse('https://hooks.slack.com')
 http = Net::HTTP.new(uri.host, uri.port)
 http.use_ssl = true
 http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-slackRequest = Net::HTTP::Post.new("/services/T024PSVLF/B1MDP55HU/UujJlw0BbmDtEI5QflFBvq41")
+slackRequest = Net::HTTP::Post.new(slackConfig)
 slackRequest.add_field('Content-Type', 'application/json')
 
 set :environment, :production
