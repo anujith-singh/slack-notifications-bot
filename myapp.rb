@@ -5,12 +5,17 @@ require 'uri'
 require 'time'
 require 'yaml'
 
+CONFIG = {
+    'slack_service_url': 'slack_service_url',
+    'slack_domain': 'https://hooks.slack.com'
+}
+
 # set :port, 9494
-uri = URI.parse('https://hooks.slack.com')
+uri = URI.parse(CONFIG[:'slack_domain'])
 http = Net::HTTP.new(uri.host, uri.port)
 http.use_ssl = true
 http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-slackRequest = Net::HTTP::Post.new(slackConfig)
+slackRequest = Net::HTTP::Post.new(CONFIG[:'slack_service_url'])
 slackRequest.add_field('Content-Type', 'application/json')
 
 def get_org_repo_prnumber(nonProtoLink)
