@@ -10,9 +10,8 @@ CONFIG = {
     'slack_domain': 'https://hooks.slack.com'
 }
 
-messages_user_id = {}
-
-messages_user_name = {}
+messages_user_id = YAML.load_file('messages_user_id.yml')
+messages_user_name = YAML.load_file('messages_user_name.yml')
 
 generic_messages = [
     'Cheers! Grab a :beer:, but if you are on ROTA, we\'ve built Practo Order :pill:  for you',
@@ -49,6 +48,7 @@ end
 
 def add_to_org_repo_prnumber(prArray, orgRepoPrs)
     countOfPrsAdded = 0
+    countOfDuplicatePrsAdded = 0
     prArray.each { |x|
         if x.empty?
             next
@@ -56,7 +56,9 @@ def add_to_org_repo_prnumber(prArray, orgRepoPrs)
         org, repo, prNumber = get_org_repo_prnumber(x)
         if orgRepoPrs[org]
             if orgRepoPrs[org][repo]
-                if !orgRepoPrs[org][repo].include? prNumber
+                if orgRepoPrs[org][repo].include? prNumber
+                    countOfDuplicatePrsAdded += 1
+                else
                     orgRepoPrs[org][repo].push(prNumber)
                     countOfPrsAdded += 1
                 end
@@ -70,7 +72,7 @@ def add_to_org_repo_prnumber(prArray, orgRepoPrs)
             countOfPrsAdded += 1
         end
     }
-    return orgRepoPrs, countOfPrsAdded
+    return orgRepoPrs, countOfPrsAdded, countOfDuplicatePrsAdded
 end
 
 def get_prs_to_deploy()
@@ -217,22 +219,55 @@ end
 post '/from_slack' do
     content_type :json
     triggerWord = params["trigger_word"]
-    user = params['user_name']
+    user_name = params['user_name']
+    user_id = params['user_id']
     responseText = ""
 
-    if triggerWord == "queue++"
+    case triggerWord
+    when "queue++"
         prs = params["text"]
         prs = clean_up_pr_links(prs, triggerWord)
 
         prArray = prs.split("https://")
         orgRepoPrs = get_prs_to_deploy()
 
-        orgRepoPrs, countOfPrsAdded = add_to_org_repo_prnumber(prArray, orgRepoPrs)
-        File.write('prs_to_deploy.yml', orgRepoPrs.to_yaml)
-        prs_to_deploy = YAML.load_file('prs_to_deploy.yml')
-        responseText = "Cheers! You have earned " + countOfPrsAdded.to_s + " x :beer:\n"
+        orgRepoPrs, countOfPrsAdded, countOfDuplicates = add_to_org_repo_prnumber(prArray, orgRepoPrs)
 
-    elsif triggerWord == "queue-" || triggerWord == "queue--"
+        prsInQueue = countOfPrsAdded
+        orgRepoPrs.each { |org,repos|
+            repos.each { |repo,prNumbers|
+                prNumbers.each{ |prNumber|
+                    prsInQueue += 1
+                }
+            }
+        }
+
+        File.write('prs_to_deploy.yml', orgRepoPrs.to_yaml)
+
+        if countOfDuplicates > 0
+            responseText = countOfDuplicates.to_s + " PRs already exist in queue\n"
+        end
+
+        responseText = "Added " + countOfPrsAdded.to_s + " PRs to queue\n"
+        if prsInQueue == 9 || prsInQueue == 13 || prsInQueue == 15
+            responseText = responseText + message_huge_no_prs.sample
+        elsif messages_user_id[user_id]
+            responseText = responseText + messages_user_id[user_id].sample
+        elsif messages_user_name[user_name]
+            responseText = responseText + messages_user_name[user_name].sample
+        else
+            responseText = responseText + generic_messages.sample
+        end
+
+        if countOfPrsAdded == 0
+            responseText = ''
+            if countOfDuplicates > 0
+                responseText = countOfDuplicates.to_s + " PRs already exist in queue\n"
+            end
+            responseText = responseText + "¯\\_(ツ)_/¯ what are you even trying to do!!"
+        end
+
+    when "queue-", "queue--"
         responseText = "¯\\_(ツ)_/¯ nothing's there to remove"
         if File.exist?('prs_to_deploy.yml')
             prs = params["text"]
@@ -259,14 +294,14 @@ post '/from_slack' do
 
             responseText = "Done :thumbsup::skin-tone-4:\nRemoved " + countOfPrsRemoved.to_s + " PRs"
         end
-    elsif triggerWord == "clear queue"
+    when "clear queue"
         responseText = "¯\\_(ツ)_/¯ nothing's there to clear"
         if File.exist?('prs_to_deploy.yml')
             File.delete('prs_to_deploy.yml')
             responseText = "All gone :thumbsup::skin-tone-4:"
         end
 
-    elsif triggerWord == "list queue"
+    when "list queue"
         prs_to_deploy = get_prs_to_deploy()
         prsInQueue = []
         currentRepo = ''
