@@ -10,6 +10,23 @@ CONFIG = {
     'slack_domain': 'https://hooks.slack.com'
 }
 
+messages_user_id = {}
+
+messages_user_name = {}
+
+generic_messages = [
+    'Cheers! Grab a :beer:, but if you are on ROTA, we\'ve built Practo Order :pill:  for you',
+    'Cheers! Go and play :table_tennis_paddle_and_ball: for a while (as if you have a choice) :troll:',
+    'Cheers! :v:  Take money from your TL and grab something from the Vending Machine :tada:',
+    'Cheers! How about asking your SEM/EM about that PS4 he promised? :troll:',
+    'Cheers! Great work, ask the person beside you to get you a :coffee:!',
+    'Cheers! But, :thinking_face: you deserve a party, tag your PM and SEM/EM! :tada:'
+]
+
+message_huge_no_prs = [
+    'Cheers :bow::skin-tone-3: But, enough! How many PRs do I have to stuff in?'
+]
+
 # set :port, 9494
 uri = URI.parse(CONFIG[:'slack_domain'])
 http = Net::HTTP.new(uri.host, uri.port)
