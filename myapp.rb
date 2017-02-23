@@ -3,7 +3,9 @@ require 'json'
 require 'net/http'
 require 'uri'
 require 'time'
+require 'yaml'
 
+# set :port, 9494
 uri = URI.parse('https://hooks.slack.com')
 http = Net::HTTP.new(uri.host, uri.port)
 http.use_ssl = true
@@ -11,9 +13,55 @@ http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 slackRequest = Net::HTTP::Post.new(slackConfig)
 slackRequest.add_field('Content-Type', 'application/json')
 
+def get_org_repo_prnumber(nonProtoLink)
+    prLink = nonProtoLink.split("/")
+    return prLink[1], prLink[2], prLink[4]
+end
+
+def clean_up_pr_links(prs, triggerWord)
+    # removing triggerWord < > \n and spaces from input text
+    prs.gsub!(triggerWord, '')
+    prs.gsub!(/[<>\n ]/, '')
+    return prs
+end
+
+def add_to_org_repo_prnumber(prArray, orgRepoPrs)
+    countOfPrsAdded = 0
+    prArray.each { |x|
+        if x.empty?
+            next
+        end
+        org, repo, prNumber = get_org_repo_prnumber(x)
+        if orgRepoPrs[org]
+            if orgRepoPrs[org][repo]
+                if !orgRepoPrs[org][repo].include? prNumber
+                    orgRepoPrs[org][repo].push(prNumber)
+                    countOfPrsAdded += 1
+                end
+            else
+                orgRepoPrs[org][repo] = [prNumber]
+                countOfPrsAdded += 1
+            end
+        else
+            orgRepoPrs[org] = {}
+            orgRepoPrs[org][repo] = [prNumber]
+            countOfPrsAdded += 1
+        end
+    }
+    return orgRepoPrs, countOfPrsAdded
+end
+
+def get_prs_to_deploy()
+    orgRepoPrs = {}
+    if File.exist?('prs_to_deploy.yml')
+        orgRepoPrs = YAML.load_file('prs_to_deploy.yml')
+    end
+    return orgRepoPrs
+end
+
 set :environment, :production
 
-get '/' do
+get '/test' do
     'Hello world!'
 end
 
@@ -147,69 +195,83 @@ end
 post '/from_slack' do
     content_type :json
     triggerWord = params["trigger_word"]
-    reponseText = ""
+    user = params['user_name']
+    responseText = ""
 
-    if triggerWord == "queue++" || triggerWord == "deployment queue++"
+    if triggerWord == "queue++"
         prs = params["text"]
-        prs.gsub! triggerWord, ""
-        prs.gsub! "<", ""
-        prs.gsub! ">", ""
-        prArray = prs.split("\n")
-        prArray = prArray.collect{|x| x.strip || x }
-        prArray = prArray.uniq
+        prs = clean_up_pr_links(prs, triggerWord)
 
-        # read from file and append new prs to that
-        if File.exist?('prsToDeploy')
-            prsInFile = Marshal.load File.read('prsToDeploy')
-            prArray = prsInFile + prArray
-        end
-        prArray = prArray.uniq
+        prArray = prs.split("https://")
+        orgRepoPrs = get_prs_to_deploy()
 
-        for pr in prArray
-            if pr.nil? || pr.empty?
-                prArray.delete(pr)
-            end
-        end
-        if !prArray.empty? && !prArray.nil?
-            serializedArray = Marshal.dump(prArray)
-            File.open('prsToDeploy', 'w') {|f| f.write(serializedArray) }
-            reponseText = reponseText + "Cheers! Have a :beer:\n"
-        end
-    elsif triggerWord == "queue-"
-        if File.exist?('prsToDeploy')
+        orgRepoPrs, countOfPrsAdded = add_to_org_repo_prnumber(prArray, orgRepoPrs)
+        File.write('prs_to_deploy.yml', orgRepoPrs.to_yaml)
+        prs_to_deploy = YAML.load_file('prs_to_deploy.yml')
+        responseText = "Cheers! You have earned " + countOfPrsAdded.to_s + " x :beer:\n"
+
+    elsif triggerWord == "queue-" || triggerWord == "queue--"
+        responseText = "¯\\_(ツ)_/¯ nothing's there to remove"
+        if File.exist?('prs_to_deploy.yml')
             prs = params["text"]
-            prs.gsub! triggerWord, ""
-            prs.gsub! "<", ""
-            prs.gsub! ">", ""
-            prArray = prs.split("\n")
-            prArray = prArray.collect{|x| x.strip || x }
-            prArray = prArray.uniq
-            prsInFile = Marshal.load File.read('prsToDeploy')
-            for pr in prArray
-                prsInFile.delete(pr)
-            end
-            serializedArray = Marshal.dump(prsInFile)
-            File.open('prsToDeploy', 'w') {|f| f.write(serializedArray) }
-            reponseText = reponseText + "Done :thumbsup::skin-tone-2:"
+            prs = clean_up_pr_links(prs, triggerWord)
+
+            prArray = prs.split("https://")
+            orgRepoPrs = get_prs_to_deploy()
+
+            countOfPrsRemoved = 0
+            prArray.each { |x|
+                if x.empty?
+                    next
+                end
+                org, repo, prNumber = get_org_repo_prnumber(x)
+                if orgRepoPrs[org][repo].include? prNumber
+                    orgRepoPrs[org][repo].delete(prNumber)
+                    if orgRepoPrs[org][repo].length == 0
+                        orgRepoPrs[org].delete(repo)
+                    end
+                    countOfPrsRemoved += 1
+                end
+            }
+            File.write('prs_to_deploy.yml', orgRepoPrs.to_yaml)
+
+            responseText = "Done :thumbsup::skin-tone-4:\nRemoved " + countOfPrsRemoved.to_s + " PRs"
         end
     elsif triggerWord == "clear queue"
-        if File.exist?('prsToDeploy')
-            File.delete('prsToDeploy')
+        responseText = "¯\\_(ツ)_/¯ nothing's there to clear"
+        if File.exist?('prs_to_deploy.yml')
+            File.delete('prs_to_deploy.yml')
+            responseText = "All gone :thumbsup::skin-tone-4:"
         end
-        reponseText = reponseText + "All gone :thumbsup::skin-tone-2:"
+
     elsif triggerWord == "list queue"
-        if File.exist?('prsToDeploy')
-            prsInFile = Marshal.load File.read('prsToDeploy')
-            if !prsInFile.empty? && !prsInFile.nil?
-                reponseText = reponseText + "The following PRs are in the queue\n"
-                reponseText = reponseText + prsInFile.join("\n")
-            else
-                reponseText = reponseText + "No PRs in queue :sunglasses:"
-            end
+        prs_to_deploy = get_prs_to_deploy()
+        prsInQueue = []
+        currentRepo = ''
+        previousRepo = ''
+        prs_to_deploy.each { |org,repos|
+            repos.each { |repo,prNumbers|
+                previousRepo = currentRepo
+                currentRepo = repo
+                if previousRepo != currentRepo
+                    prsInQueue.push('')
+                end
+                prNumbers.each{ |prNumber|
+                    prUrl = "https://github.com/" + org + "/" + repo + "/pull/" + prNumber
+                    displayPrName = repo + '#' + prNumber
+                    prsInQueue.push("<" + prUrl + "|" + displayPrName + ">")
+                }
+            }
+        }
+        if prsInQueue.length > 0
+            responseText = "The following PRs are in queue\n"
+            responseText = responseText + prsInQueue.join("\n")
         else
-            reponseText = reponseText + "No PRs in queue :sunglasses:"
+            responseText = "No PRs in queue :sunglasses:"
         end
+    else
+        responseText = "Unrecognised triggerWord"
     end
 
-    { :text => reponseText }.to_json
+    { :text => responseText }.to_json
 end
