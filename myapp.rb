@@ -90,26 +90,24 @@ get '/test' do
 end
 
 post '/github_event_handler' do
-    @payload = JSON.parse(params[:payload])
+    payload = JSON.parse(request.body.read)
     case request.env['HTTP_X_GITHUB_EVENT']
     when "pull_request"
-        if @payload["action"] == "closed" && @payload["pull_request"]["merged"] && @payload["pull_request"]["base"]["ref"] === "master"
-            user = @payload["pull_request"]["merged_by"]["login"]
-            userUrl = @payload["pull_request"]["merged_by"]["html_url"]
+        if payload["action"] == "closed" && payload["pull_request"]["merged"] && payload["pull_request"]["base"]["ref"] === "master"
+            user = payload["pull_request"]["merged_by"]["login"]
+            userUrl = payload["pull_request"]["merged_by"]["html_url"]
 
-            prAuthor = @payload["pull_request"]["user"]["login"]
-            prAuthorUrl = @payload["pull_request"]["user"]["html_url"]
+            prAuthor = payload["pull_request"]["user"]["login"]
+            prAuthorUrl = payload["pull_request"]["user"]["html_url"]
 
-            mergeTime = @payload["pull_request"]["merged_by"]["login"]
+            prNumber = payload["number"]
+            prTitle = payload["pull_request"]["title"]
+            prUrl = payload["pull_request"]["html_url"]
 
-            prNumber = @payload["number"]
-            prTitle = @payload["pull_request"]["title"]
-            prUrl = @payload["pull_request"]["html_url"]
+            mergeTime = payload["pull_request"]["merged_at"]
 
-            mergeTime = @payload["pull_request"]["merged_at"]
-
-            repoName = @payload["repository"]["name"]
-            repoFullName = @payload["repository"]["full_name"]
+            repoName = payload["repository"]["name"]
+            repoFullName = payload["repository"]["full_name"]
             displayPrName = repoName + '#' + prNumber.to_s
 
             epochSecs = Time.parse(mergeTime).to_i
@@ -121,25 +119,22 @@ post '/github_event_handler' do
                     {
                         fallback: user + " merged a PR to " + repoFullName,
                         title: user + " merged a PR to " + repoFullName,
-                        title_link: prUrl,
+                        # title_link: prUrl,
                         # author_name: user,
                         # author_link: userUrl,
-                        # mrkdwn_in: ["fields"],
+                        mrkdwn_in: ["fields"],
                         color: '#e8e8e8',
                         fields:[
                             {
-                                title: "PR # ",
-                                value: "<" + prUrl + "|" + displayPrName + ">",
+                                value: "*PR #* <" + prUrl + "|" + displayPrName + ">",
                                 short: true
                             },
                             {
-                                title: "PR Author",
-                                value: "<" + prAuthorUrl + "|" + prAuthor + ">",
+                                value: "*PR Author* <" + prAuthorUrl + "|" + prAuthor + ">",
                                 short: true
                             },
                             {
-                                title: "PR Title",
-                                value: prTitle,
+                                value: "*PR Title* " + prTitle,
                                 short: false
                             }
                         ],
@@ -157,6 +152,9 @@ end
 
 post '/travis_notifications' do
     @payload = JSON.parse(params[:payload])
+    print "\n\n\n"
+    print @payload
+    print "\n\n\n"
     buildStatus = @payload["status_message"]
     buildFailStatuses = ['Broken','Failed','Still Failing']
     if @payload["branch"] === "master" && buildFailStatuses.include?(buildStatus)
