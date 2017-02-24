@@ -114,6 +114,22 @@ post '/github_event_handler' do
             ENV['TZ']='Asia/Kolkata'
             timeSinceEpoch = Time::at(epochSecs).to_i
 
+            # Deleting the PR from queue
+            merged_pr = payload['pull_request']['html_url']
+            merged_pr.gsub!('https://', '')
+            orgRepoPrs = get_prs_to_deploy()
+            org, repo, prNumber = get_org_repo_prnumber(merged_pr)
+            orgRepoPrs = get_prs_to_deploy()
+            if orgRepoPrs[org][repo].include? prNumber
+                orgRepoPrs[org][repo].delete(prNumber)
+                if orgRepoPrs[org][repo].length == 0
+                    orgRepoPrs[org].delete(repo)
+                    if orgRepoPrs[org].length == 0
+                        orgRepoPrs.delete(org)
+                    end
+                end
+            end
+            File.write('prs_to_deploy.yml', orgRepoPrs.to_yaml)
             data = {
                 attachments: [
                     {
@@ -284,6 +300,9 @@ post '/from_slack' do
                     orgRepoPrs[org][repo].delete(prNumber)
                     if orgRepoPrs[org][repo].length == 0
                         orgRepoPrs[org].delete(repo)
+                        if orgRepoPrs[org].length == 0
+                            orgRepoPrs.delete(org)
+                        end
                     end
                     countOfPrsRemoved += 1
                 end
@@ -300,11 +319,11 @@ post '/from_slack' do
         end
 
     when "list queue"
-        prs_to_deploy = get_prs_to_deploy()
+        orgRepoPrs = get_prs_to_deploy()
         prsInQueue = []
         currentRepo = ''
         previousRepo = ''
-        prs_to_deploy.each { |org,repos|
+        orgRepoPrs.each { |org,repos|
             repos.each { |repo,prNumbers|
                 previousRepo = currentRepo
                 currentRepo = repo
