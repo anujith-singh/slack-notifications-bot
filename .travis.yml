@@ -2,4 +2,4 @@ language: ruby
 rvm:
   - 2.2
 notifications:
-  webhooks: <notifications end-point>
+  webhooks: https://8e8e433e.ngrok.io/travis_notifications
