@@ -174,6 +174,14 @@ post '/travis_notifications' do
     buildStatus = @payload["status_message"]
     buildFailStatuses = ['Broken','Failed','Still Failing']
     if @payload["branch"] === "master" && buildFailStatuses.include?(buildStatus)
+        payload2 =[]
+        if File.exist?('travis_log_data')
+            payload2 = Marshal.load File.read('travis_log_data')
+        end
+        log_data = [@payload] + payload2
+        serializedArray = Marshal.dump(log_data)
+        File.open('travis_log_data', 'w') {|f| f.write(serializedArray) }
+
         author = @payload["author_name"]
         buildUrl = @payload["build_url"]
         message = @payload["message"]
