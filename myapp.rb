@@ -238,7 +238,7 @@ post '/from_slack' do
     responseText = ""
 
     case triggerWord
-    when "queue++"
+    when "queue+", "queue++"
         prs = params["text"]
         prs = clean_up_pr_links(prs, triggerWord)
 
