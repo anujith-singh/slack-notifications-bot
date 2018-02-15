@@ -108,19 +108,19 @@ post '/github_event_handler' do
 
             repoName = payload["repository"]["name"]
             repoFullName = payload["repository"]["full_name"]
-            displayPrName = repoName + '#' + prNumber.to_s
+            displayPrName = repoName + '/' + prNumber.to_s
 
             epochSecs = Time.parse(mergeTime).to_i
             ENV['TZ']='Asia/Kolkata'
             timeSinceEpoch = Time::at(epochSecs).to_i
 
             # Deleting the PR from queue
-            merged_pr = payload['pull_request']['html_url']
-            merged_pr.gsub!('https://', '')
+            prUrl.gsub!('https://', '')
             orgRepoPrs = get_prs_to_deploy()
-            org, repo, prNumber = get_org_repo_prnumber(merged_pr)
+            org, repo, prNumber = get_org_repo_prnumber(prUrl)
+            prUrl = 'https://' + prUrl
             orgRepoPrs = get_prs_to_deploy()
-            if orgRepoPrs[org][repo].include? prNumber
+            if orgRepoPrs[org] and orgRepoPrs[org][repo] and orgRepoPrs[org][repo].include? prNumber
                 orgRepoPrs[org][repo].delete(prNumber)
                 if orgRepoPrs[org][repo].length == 0
                     orgRepoPrs[org].delete(repo)
@@ -172,7 +172,7 @@ post '/travis_notifications' do
     print @payload
     print "\n\n\n"
     buildStatus = @payload["status_message"]
-    buildFailStatuses = ['Broken','Failed','Still Failing']
+    buildFailStatuses = ['Broken','Failed','Still Failing', 'Fixed']
     if @payload["branch"] === "master" && buildFailStatuses.include?(buildStatus)
         payload2 =[]
         if File.exist?('travis_log_data')
@@ -270,16 +270,7 @@ post '/from_slack' do
             responseText = countOfDuplicates.to_s + " PRs already exist in queue\n"
         end
 
-        responseText = "Added " + countOfPrsAdded.to_s + " PRs to queue\n"
-        if prsInQueue == 9 || prsInQueue == 13 || prsInQueue == 15
-            responseText = responseText + message_huge_no_prs.sample
-        elsif messages_user_id[user_id]
-            responseText = responseText + messages_user_id[user_id].sample
-        elsif messages_user_name[user_name]
-            responseText = responseText + messages_user_name[user_name].sample
-        else
-            responseText = responseText + generic_messages.sample
-        end
+        responseText = "Added " + countOfPrsAdded.to_s + " PR(s) to queue\n"
 
         if countOfPrsAdded == 0
             responseText = ''
@@ -333,16 +324,18 @@ post '/from_slack' do
         previousRepo = ''
         orgRepoPrs.each { |org,repos|
             repos.each { |repo,prNumbers|
+                prsInQueue.push("No. of PRs: " + prNumbers.length.to_s)
                 previousRepo = currentRepo
                 currentRepo = repo
-                if previousRepo != currentRepo
-                    prsInQueue.push('')
-                end
                 prNumbers.each{ |prNumber|
                     prUrl = "https://github.com/" + org + "/" + repo + "/pull/" + prNumber
                     displayPrName = repo + '#' + prNumber
                     prsInQueue.push("<" + prUrl + "|" + displayPrName + ">")
                 }
+                if previousRepo != currentRepo
+                    prsInQueue.push('')
+                end
+
             }
         }
         if prsInQueue.length > 0
